@@ -1,4 +1,4 @@
-# AI Agent SDK
+# Memora-agent
 
 A TypeScript SDK for building AI agents that can use tools, remember information, and retrieve relevant memories when needed.
 
@@ -24,7 +24,10 @@ You can use the SDK to build things like:
 - Business automation agents
 - Agents that work with your own tools and data
 
-
+# Install
+```text
+npm i memora-agent
+```
 ## 1. Create an Agent
 
 The Agent is the main part of the SDK. It connects the AI model with instructions, tools, memory, and other features.
