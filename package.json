@@ -1,0 +1,106 @@
+{
+  "name": "memora-agent",
+  "version": "0.1.0",
+  "description": "A lightweight, provider-agnostic TypeScript SDK for building AI agents with tool calling, short/long-term memory, and guardrails.",
+  "license": "ISC",
+  "author": "Anmol Deep Singh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deep-anmol2209/remembr.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./openai": {
+      "types": "./dist/providers/llm-providers/openAi.d.ts",
+      "default": "./dist/providers/llm-providers/openAi.js"
+    },
+    "./gemini": {
+      "types": "./dist/providers/llm-providers/gemini.d.ts",
+      "default": "./dist/providers/llm-providers/gemini.js"
+    },
+    "./groq": {
+      "types": "./dist/providers/llm-providers/groq.d.ts",
+      "default": "./dist/providers/llm-providers/groq.js"
+    },
+    "./neo4j": {
+      "types": "./dist/providers/db-providers/neo4j.d.ts",
+      "default": "./dist/providers/db-providers/neo4j.js"
+    },
+    "./mongodb": {
+      "types": "./dist/providers/db-providers/mongodb.d.ts",
+      "default": "./dist/providers/db-providers/mongodb.js"
+    },
+    "./pinecone": {
+      "types": "./dist/providers/db-providers/pinecone.d.ts",
+      "default": "./dist/providers/db-providers/pinecone.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "sdk",
+    "llm",
+    "memory",
+    "tools",
+    "openai",
+    "gemini",
+    "groq"
+  ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@google/genai": "^2.15.0",
+    "groq-sdk": "^1.5.0",
+    "neo4j-driver": "^6.2.0",
+    "openai": "^7.3.0",
+    "@pinecone-database/pinecone": "^8.2.0",
+    "mongodb": "^7.6.0"
+  },
+  "peerDependenciesMeta": {
+    "@google/genai": {
+      "optional": true
+    },
+    "groq-sdk": {
+      "optional": true
+    },
+    "neo4j-driver": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "@pinecone-database/pinecone": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@google/genai": "^2.15.0",
+    "@types/node": "^26.1.2",
+    "dotenv": "^17.4.2",
+    "groq-sdk": "^1.5.0",
+    "neo4j-driver": "^6.2.0",
+    "openai": "^7.3.0",
+    "typescript": "^7.0.2"
+  }
+}
