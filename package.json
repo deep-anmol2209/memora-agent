@@ -1,6 +1,6 @@
 {
   "name": "memora-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A lightweight, provider-agnostic TypeScript SDK for building AI agents with tool calling, short/long-term memory, and guardrails.",
   "license": "ISC",
   "author": "Anmol Deep Singh",
