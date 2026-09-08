@@ -68,3 +68,23 @@ export class MaxToolIterationsExceededError extends SdkError {
         this.name = "MaxToolIterationsExceededError";
     }
 }
+
+
+export class StructuredOutputParseError extends SdkError {
+    constructor(public rawText: string, cause: unknown) {
+        super(
+            `Failed to parse model output as JSON for structured output: ${
+                cause instanceof Error ? cause.message : String(cause)
+            }`,
+            cause
+        );
+        this.name = "StructuredOutputParseError";
+    }
+}
+
+export class StructuredOutputUnsupportedError extends SdkError {
+    constructor(public provider: string, public reason: string) {
+        super(`structuredOutput is not supported on ${provider} in this configuration: ${reason}`);
+        this.name = "StructuredOutputUnsupportedError";
+    }
+}

@@ -2,7 +2,7 @@ import { calculateKeywordScore, calculateMemoryScore } from "./memory-ranking.js
 import type { EmbeddingProvider, GraphStore, LongTermMemory, LongTermMemoryStore, MemoryContradictionDetector, MemoryGraphReference, MemoryOptions, MemoryRecord, MemorySearchOptions, MemorySimilarity, VectorStore } from "../agent/types.js";
 import { InMemoryLongTermMemoryStore } from "./in-memory-memory-store.js";
 import { noopLogger, type Logger } from "../logger.js";
-
+import { getCurrentTracer } from "../tracing/context.js";
 import type { MemoryQueryClassifier } from "../memory/memory-query-classifier.js";
 
 
@@ -40,15 +40,22 @@ async graphSearch(
     options: MemoryGraphReference
 ): Promise<MemoryRecord[]> {
 
-   if(!this.config.graphStore){
-    throw new Error("Graph store is not configured")
-   }
+    if (!this.config.graphStore) {
+        throw new Error("Graph store is not configured");
+    }
 
-   
+    const tracer = getCurrentTracer();
+    const graphSpan = tracer?.startSpan("graph.search");
 
-    return this.config.graphStore.search(options);
+    try {
+        return await this.config.graphStore.search(options);
+    } catch (error) {
+        graphSpan?.recordError(error);
+        throw error;
+    } finally {
+        graphSpan?.end();
+    }
 }
-
 
 
 async remember(record: MemoryRecord): Promise<void> {
@@ -62,8 +69,56 @@ async remember(record: MemoryRecord): Promise<void> {
     const normalizedContent =
         record.content.trim().toLowerCase();
 
-    const existingMemories =
-        await this.config.store?.getAll();
+    const rememberTracer = getCurrentTracer();
+    let existingMemories: MemoryRecord[] = [];
+
+    // Prefer targeted store queries when we have a key or structured metadata
+    // to avoid full collection scans. Fall back to getAll() when provider
+    // doesn't support targeted search.
+    const storeHasSearchByMetadata =
+        typeof (this.config.store as any)?.searchByMetadata === "function";
+
+    if (record.key || record.metadata?.type || storeHasSearchByMetadata) {
+        const searchSpan = rememberTracer?.startSpan("memory.store.searchByMetadata");
+
+        try {
+            if (storeHasSearchByMetadata) {
+                const metadataQuery = {
+                    ...(record.metadata?.type !== undefined && { type: record.metadata?.type }),
+                    ...(record.key !== undefined && { key: record.key })
+                };
+
+                existingMemories =
+                    (await (this.config.store as any).searchByMetadata(
+                        metadataQuery,
+                        {
+                            userId: record.metadata?.userId,
+                            sessionId: record.metadata?.sessionId,
+                            limit: 50
+                        }
+                    )) ?? [];
+            } else {
+                existingMemories = (await this.config.store?.getAll()) ?? [];
+            }
+        } catch (error) {
+            searchSpan?.recordError(error);
+            throw error;
+        } finally {
+            searchSpan?.end();
+        }
+    } else {
+        const getAllSpan = rememberTracer?.startSpan("memory.store.getAll");
+
+        try {
+            existingMemories =
+                (await this.config.store?.getAll()) ?? [];
+        } catch (error) {
+            getAllSpan?.recordError(error);
+            throw error;
+        } finally {
+            getAllSpan?.end();
+        }
+    }
 
     for (const existing of existingMemories) {
 
@@ -124,11 +179,21 @@ async remember(record: MemoryRecord): Promise<void> {
                     key: record.key
                 });
 
-                const contradiction =
-                    await this.config.contradictionDetector.isContradiction(
-                        existing,
-                        record
-                    );
+                const contradictionSpan = rememberTracer?.startSpan("memory.contradiction-check");
+                let contradiction = false;
+
+                try {
+                    contradiction =
+                        await this.config.contradictionDetector.isContradiction(
+                            existing,
+                            record
+                        );
+                } catch (error) {
+                    contradictionSpan?.recordError(error);
+                    throw error;
+                } finally {
+                    contradictionSpan?.end();
+                }
 
                 this.logger.debug("Contradiction result", { contradiction });
 
@@ -159,14 +224,32 @@ async remember(record: MemoryRecord): Promise<void> {
                             to: record.content
                         });
 
-                        await this.config.store.delete(
-                            existing.id
-                        );
+                        const deleteSpan = rememberTracer?.startSpan("memory.store.delete");
 
-                        if (this.config.vectorStore) {
-                            await this.config.vectorStore.delete(
+                        try {
+                            await this.config.store.delete(
                                 existing.id
                             );
+                        } catch (error) {
+                            deleteSpan?.recordError(error);
+                            throw error;
+                        } finally {
+                            deleteSpan?.end();
+                        }
+
+                        if (this.config.vectorStore) {
+                            const vectorDeleteSpan = rememberTracer?.startSpan("vector.delete");
+
+                            try {
+                                await this.config.vectorStore.delete(
+                                    existing.id
+                                );
+                            } catch (error) {
+                                vectorDeleteSpan?.recordError(error);
+                                throw error;
+                            } finally {
+                                vectorDeleteSpan?.end();
+                            }
                         }
 
                         continue;
@@ -207,14 +290,32 @@ async remember(record: MemoryRecord): Promise<void> {
                     to: record.content
                 });
 
-                await this.config.store.delete(
-                    existing.id
-                );
+                const deleteSpan = rememberTracer?.startSpan("memory.store.delete");
 
-                if (this.config.vectorStore) {
-                    await this.config.vectorStore.delete(
+                try {
+                    await this.config.store.delete(
                         existing.id
                     );
+                } catch (error) {
+                    deleteSpan?.recordError(error);
+                    throw error;
+                } finally {
+                    deleteSpan?.end();
+                }
+
+                if (this.config.vectorStore) {
+                    const vectorDeleteSpan = rememberTracer?.startSpan("vector.delete");
+
+                    try {
+                        await this.config.vectorStore.delete(
+                            existing.id
+                        );
+                    } catch (error) {
+                        vectorDeleteSpan?.recordError(error);
+                        throw error;
+                    } finally {
+                        vectorDeleteSpan?.end();
+                    }
                 }
 
                 continue;
@@ -232,16 +333,43 @@ async remember(record: MemoryRecord): Promise<void> {
                 to: record.content
             });
 
-            await this.config.store.delete(
-                existing.id
-            );
-   if(this.config.graphStore){
-    await this.config.graphStore.delete?.(existing.id)
-   }
-            if (this.config.vectorStore) {
-                await this.config.vectorStore.delete(
+            const deleteSpan = rememberTracer?.startSpan("memory.store.delete");
+
+            try {
+                await this.config.store.delete(
                     existing.id
                 );
+            } catch (error) {
+                deleteSpan?.recordError(error);
+                throw error;
+            } finally {
+                deleteSpan?.end();
+            }
+   if(this.config.graphStore){
+    const graphDeleteSpan = rememberTracer?.startSpan("graph.store.delete");
+
+    try {
+        await this.config.graphStore.delete?.(existing.id)
+    } catch (error) {
+        graphDeleteSpan?.recordError(error);
+        throw error;
+    } finally {
+        graphDeleteSpan?.end();
+    }
+   }
+            if (this.config.vectorStore) {
+                const vectorDeleteSpan = rememberTracer?.startSpan("vector.delete");
+
+                try {
+                    await this.config.vectorStore.delete(
+                        existing.id
+                    );
+                } catch (error) {
+                    vectorDeleteSpan?.recordError(error);
+                    throw error;
+                } finally {
+                    vectorDeleteSpan?.end();
+                }
             }
 
             continue;
@@ -270,11 +398,21 @@ if (
     sameUser
 ) {
 
-    const score =
-        await this.config.similarity.similarity(
-            existing.content,
-            record.content
-        );
+    const similaritySpan = rememberTracer?.startSpan("memory.similarity");
+    let score = 0;
+
+    try {
+        score =
+            await this.config.similarity.similarity(
+                existing.content,
+                record.content
+            );
+    } catch (error) {
+        similaritySpan?.recordError(error);
+        throw error;
+    } finally {
+        similaritySpan?.end();
+    }
 
     this.logger.debug("Dedup check", {
         existing: existing.content,
@@ -311,11 +449,28 @@ if (
     // 4. Store new memory
     // ----------------------------------
 
-    await this.config.store?.set(record);
+    const storeSpan = rememberTracer?.startSpan("memory.store.set");
 
+    try {
+        await this.config.store?.set(record);
+    } catch (error) {
+        storeSpan?.recordError(error);
+        throw error;
+    } finally {
+        storeSpan?.end();
+    }
 
     if(this.config.graphStore){
-        await this.config.graphStore.set(record)
+        const graphSpan = rememberTracer?.startSpan("graph.store.set");
+
+        try {
+            await this.config.graphStore.set(record)
+        } catch (error) {
+            graphSpan?.recordError(error);
+            throw error;
+        } finally {
+            graphSpan?.end();
+        }
     }
     // ----------------------------------
     // 5. Store embedding
@@ -325,20 +480,38 @@ if (
         this.config.embedding &&
         this.config.vectorStore
     ) {
+         const embeddingSpan= rememberTracer?.startSpan("memory.embedding");
 
-        const vector =
+         try {
+            const vector =
             await this.config.embedding.embed(
                 record.content
             );
 
-        await this.config.vectorStore.upsert({
-            id: record.id,
-            vector,
+            const vectorSpan = rememberTracer?.startSpan("vector.upsert");
 
-            ...(record.metadata !== undefined && {
-                metadata: record.metadata
-            })
-        });
+            try {
+                await this.config.vectorStore.upsert({
+                    id: record.id,
+                    vector,
+
+                    ...(record.metadata !== undefined && {
+                        metadata: record.metadata
+                    })
+                });
+            } catch (error) {
+                vectorSpan?.recordError(error);
+                throw error;
+            } finally {
+                vectorSpan?.end();
+            }
+         } catch (error) {
+            embeddingSpan?.recordError(error);
+            throw error;
+         }finally{
+            embeddingSpan?.end();
+         }
+        
     }
 }
 
@@ -374,6 +547,7 @@ async search(
     options: MemorySearchOptions = {}
 ): Promise<MemoryRecord[]> {
 
+
     let searchOptions = options;
 
     if (
@@ -381,20 +555,71 @@ async search(
         this.config.queryClassifier
     ) {
 
-        const classification =
-            await this.config.queryClassifier.classify(
-                query
-            );
+    const tracer = getCurrentTracer();
+const classifierSpan =
+    tracer?.startSpan("query.classify");
 
-        if (classification.metadata) {
+let classification;
 
-            searchOptions = {
-                ...options,
+try {
+    classification =
+        await this.config.queryClassifier.classify(
+            query
+        );
+    
+        
+} catch (error) {
+    classifierSpan?.recordError(error);
+    throw error;
+} finally {
+    classifierSpan?.end();
+}
+    if (classification.intent === "write") {
+    return [];
+}
 
-                metadata:
-                    classification.metadata
-            };
+if (
+    classification.intent === "read" &&
+    classification.metadata &&
+    this.config.store
+) {
+    const searchSpan = tracer?.startSpan("memory.store.searchByMetadata");
+
+    try {
+        const storeOptions: Record<string, unknown> = {
+            limit: options.limit ?? 10
+        };
+
+        if (options.userId !== undefined) {
+            storeOptions.userId = options.userId;
         }
+
+        if (options.sessionId !== undefined) {
+            storeOptions.sessionId = options.sessionId;
+        }
+
+       
+        const metadataResults = await this.config.store.searchByMetadata(
+            classification.metadata,
+            storeOptions as any
+        );
+        if (metadataResults && metadataResults.length > 0) {
+            return metadataResults;
+        }
+    } catch (error) {
+        searchSpan?.recordError(error);
+        throw error;
+    } finally {
+        searchSpan?.end();
+    }
+}
+
+if (classification.metadata) {
+    searchOptions = {
+        ...options,
+        metadata: classification.metadata
+    };
+}
     }
 
     const limit =
@@ -481,12 +706,25 @@ async search(
     // GraphStore retrieval
     // ----------------------------------
 
+     
+     
     if (this.config.graphStore && searchOptions.graph) {
+        const tracer = getCurrentTracer();
+        const graphSpan= tracer?.startSpan("graph.search")
 
-        const graphResults =
+        let graphResults;
+        try {
+             graphResults =
             await this.config.graphStore.search(
                 searchOptions.graph
             );
+        } catch (error) {
+            graphSpan?.recordError(error);
+            throw error;
+        }finally{
+            graphSpan?.end();
+        }
+      
 
         for (const memory of graphResults) {
 
@@ -513,12 +751,24 @@ async search(
     // ----------------------------------
 
     if (this.config.embedding && this.config.vectorStore) {
-
-        const queryVector =
+        const tracer= getCurrentTracer();
+        const embeddingSpan= tracer?.startSpan("memory.embedding");
+               let queryVector: number[];
+        try {
+             queryVector =
             await this.config.embedding.embed(query);
+        } catch (error) {
+            embeddingSpan?.recordError(error);
+            throw error;
+        }finally{
+            embeddingSpan?.end();
+        }
+       
 
+        const multiplier = searchOptions.vectorTopKMultiplier ?? 2;
         const vectorSearchOptions = {
-            limit: Math.max(limit * 5, 20),
+            // Multiplier is configurable per-search via `vectorTopKMultiplier`.
+            limit: Math.max(limit * multiplier, 20),
 
             ...(searchOptions.userId !== undefined && {
                 userId: searchOptions.userId
@@ -529,44 +779,89 @@ async search(
             })
         };
 
-        const vectorResults =
+        
+      const vectorSpan= tracer?.startSpan("vector.search")
+      let vectorResults;
+
+      try {
+           vectorResults =
             await this.config.vectorStore.search(
                 queryVector,
                 vectorSearchOptions
             );
 
+            vectorSpan?.setAttribute("vector.topK", vectorSearchOptions.limit);
+            vectorSpan?.setAttribute("vector.resultCount", vectorResults.length)
+      } catch (error) {
+             vectorSpan?.recordError(error);
+             throw error
+      }finally{
+        vectorSpan?.end()
+      }
+     
 
-        for (const result of vectorResults) {
 
-            const memory =
-                await this.config.store?.get(result.id);
+    // Batch-fetch memories for vector results to avoid N+1 store.get calls.
+    const ids = vectorResults.map(r => r.id);
+    const storeHasGetMany = typeof (this.config.store as any)?.getMany === "function";
 
-            if (!memory) {
-                continue;
+    let memoryResults: { memory: MemoryRecord | undefined; score: number }[] = [];
+
+    if (storeHasGetMany) {
+        const getManySpan = tracer?.startSpan("memory.store.getMany");
+        try {
+            const records: MemoryRecord[] = await (this.config.store as any).getMany(ids);
+            const byId: Record<string, MemoryRecord> = {};
+            for (const r of records) {
+                byId[r.id] = r;
             }
 
-            const existingCandidate =
-                candidates.find(
-                    candidate =>
-                        candidate.memory.id === memory.id
-                );
-
-            if (existingCandidate) {
-
-                // Vector result is more informative
-                // than graph-only candidate.
-                existingCandidate.semanticScore =
-                    result.score;
-
-            } else {
-
-                candidates.push({
-                    memory,
-                    semanticScore: result.score
-                });
-
-            }
+            memoryResults = vectorResults.map(result => ({
+                memory: byId[result.id],
+                score: result.score
+            }));
+        } catch (error) {
+            getManySpan?.recordError(error);
+            throw error;
+        } finally {
+            getManySpan?.end();
         }
+    } else {
+        memoryResults = await Promise.all(
+            vectorResults.map(async (result) => {
+                const storeTracer = getCurrentTracer();
+                const storeSpan = storeTracer?.startSpan("memory.store.get");
+
+                try {
+                    const memory = await this.config.store?.get(result.id);
+                    return { memory, score: result.score };
+                } catch (error) {
+                    storeSpan?.recordError(error);
+                    throw error;
+                } finally {
+                    storeSpan?.end();
+                }
+            })
+        );
+    }
+
+    for (const result of memoryResults) {
+        const memory = result.memory;
+
+        if (!memory) {
+            continue;
+        }
+
+        const existingCandidate = candidates.find(
+            candidate => candidate.memory.id === memory.id
+        );
+
+        if (existingCandidate) {
+            existingCandidate.semanticScore = result.score;
+        } else {
+            candidates.push({ memory, semanticScore: result.score });
+        }
+    }
 
 
     } else {

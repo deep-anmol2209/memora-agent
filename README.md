@@ -366,6 +366,19 @@ the SDK creates an embedding for the query and searches the vector store for sim
 
 Vector stores are useful when you have many memories and need to find relevant ones efficiently.
 
+#### Tuning vector candidate size
+
+By default the SDK asks the vector store for a modest number of candidates per search to balance recall and latency. You can tune the per-search multiplier with `vectorTopKMultiplier` on `MemorySearchOptions`:
+
+```ts
+const memories = await longTermMemory.search(
+    "Which programming language do I like?",
+    { limit: 5, vectorTopKMultiplier: 3 }
+);
+```
+
+The SDK computes `topK = Math.max(limit * vectorTopKMultiplier, 20)`. Lowering the multiplier reduces vector and DB work; raising it increases recall at the cost of latency.
+
 ## 10. Semantic Search
 
 Semantic search finds memories based on their meaning instead of requiring the exact same words.

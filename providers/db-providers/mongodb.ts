@@ -2,7 +2,8 @@ import { MongoClient, type Collection, type Db } from "mongodb";
 
 import type {
     LongTermMemoryStore,
-    MemoryRecord
+    MemoryRecord,
+    MemorySearchOptions
 } from "../../src/agent/types.js";
 
 import { MemoryOperationError } from "../../src/error.js";
@@ -88,27 +89,33 @@ export class MongoLongTermMemoryStore
     // GET
     // ============================================
 
-    async get(
-        id: string
-    ): Promise<MemoryRecord | undefined> {
+   async get(
+    id: string
+): Promise<MemoryRecord | undefined> {
 
-        try {
+    const start = Date.now();
 
-            const record =
-                await this.collection.findOne({
-                    id
-                });
+    try {
 
-            return record ?? undefined;
+        const record =
+            await this.collection.findOne({
+                id
+            });
 
-        } catch (cause) {
+       
 
-            throw new MemoryOperationError(
-                "get",
-                cause
-            );
-        }
+        return record ?? undefined;
+
+    } catch (cause) {
+
+     
+
+        throw new MemoryOperationError(
+            "get",
+            cause
+        );
     }
+}
 
     // ============================================
     // GET ALL
@@ -133,6 +140,88 @@ export class MongoLongTermMemoryStore
             );
         }
     }
+
+    // ============================================
+    // GET MANY
+    // ============================================
+
+    async getMany(ids: string[]): Promise<MemoryRecord[]> {
+        const start = Date.now();
+
+        try {
+            const records = await this.collection
+                .find({ id: { $in: ids } })
+                .toArray();
+
+        
+
+            return records;
+
+        } catch (cause) {
+         
+            throw new MemoryOperationError("getMany", cause);
+        }
+    }
+
+async searchByMetadata(
+    metadata: MemorySearchOptions["metadata"],
+    options: Pick<
+        MemorySearchOptions,
+        "userId" | "sessionId" | "limit"
+    > = {}
+): Promise<MemoryRecord[]> {
+
+    try {
+
+        const filter: Record<string, unknown> = {};
+
+        for (const [key, value] of Object.entries(metadata ?? {})) {
+
+            if (value === undefined) {
+                continue;
+            }
+
+            if (key === "key") {
+                filter.key = value;
+            } else {
+                filter[`metadata.${key}`] = value;
+            }
+        }
+
+        if (options.userId !== undefined) {
+            filter["metadata.userId"] = options.userId;
+        }
+
+        if (options.sessionId !== undefined) {
+            filter["metadata.sessionId"] = options.sessionId;
+        }
+
+        const limit = options.limit ?? 10;
+
+        let results = await this.collection
+            .find(filter)
+            .limit(limit)
+            .toArray();
+
+        if (results.length === 0 && filter.key && metadata?.type) {
+            const fallbackFilter = { ...filter };
+            delete fallbackFilter.key;
+            results = await this.collection
+                .find(fallbackFilter)
+                .limit(limit)
+                .toArray();
+        }
+
+        return results;
+
+    } catch (cause) {
+
+        throw new MemoryOperationError(
+            "searchByMetadata",
+            cause
+        );
+    }
+}
 
     // ============================================
     // DELETE

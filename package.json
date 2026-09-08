@@ -50,7 +50,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node dist/test/run-all.js",
+    "test:unit": "npm run build && node dist/test/run-all.js",
+    "test:integration": "npm run build && NODE_ENV=integration node dist/test/run-all-integration.js",
+    "test:e2e": "npm run build && node dist/test/e2e/real-memory-e2e.js",
+    "test:performance": "npm run build && node dist/test/bench-inmemory.js"
   },
   "keywords": [
     "ai",

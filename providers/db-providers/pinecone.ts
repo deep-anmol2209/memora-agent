@@ -170,7 +170,7 @@ export class PineconeVectorStore
             };
         }
 
-
+  const start = Date.now();
         const response =
             await this.index.query({
 
@@ -191,6 +191,9 @@ export class PineconeVectorStore
                         this.namespace
                 })
             });
+
+            console.log("pinecone query:", Date.now() - start, "ms")
+            
 
 
         return response.matches.map(

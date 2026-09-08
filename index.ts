@@ -1,3 +1,5 @@
+import { BasicTracer } from "./src/tracing/tracer.js";
+
 // Agent
 export { Agent, AgentSession } from "./src/agent/agent.js";
 export { defineTool } from "./src/agent/types.js";
@@ -50,8 +52,7 @@ export {
     MaxToolIterationsExceededError
 } from "./src/error.js";
 
-// export {PineconeVectorStore} from "./src/memory/pinecone-vector-store.js"
-
-// export type{
-//     PineconeVectorStoreOptions
-// } from "./src/memory/pinecone-vector-store.js"
+export {BasicTracer} from "./src/tracing/tracer.js"
+export type {Span, Tracer} from "./src/tracing/tracer.js"
+export {NoopTracer} from "./src/tracing/tracer.js"
+export {NoopSpan} from "./src/tracing/tracer.js"

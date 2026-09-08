@@ -1,5 +1,7 @@
 import z from "zod"
 import type { Logger } from "../logger.js"
+import type { Tracer } from "../tracing/tracer.js";
+import type { MemoryQueryClassifier } from "../memory/memory-query-classifier.js";
 
 
 
@@ -43,11 +45,24 @@ export interface GenerateRequest {
     system: string;
     messages: Message[]
     tools?: ITool[];
+    /**
+     * When set, the model must produce a final answer conforming to this
+     * zod schema, using whatever native structured-output mechanism the
+     * provider offers (e.g. OpenAI/Groq `response_format: json_schema`,
+     * Gemini `responseJsonSchema`) rather than a prompted convention.
+     * Providers that don't support this should ignore it.
+     */
+    responseFormat?: {
+        /** A short identifier for the schema (provider-facing, not shown to the end user). */
+        name: string;
+        schema: z.ZodType;
+    };
 }
 
 export interface GenerateResponse {
     text?: string;
     toolCalls?: ToolCall[];
+    output?: unknown
 }
 export interface ToolCall {
     id: string;
@@ -99,15 +114,23 @@ export interface IModel {
 export interface AgentConfig {
     instructions: string;
     tools?: ITool[];
-
+    tracer?: Tracer
     model: IModel
     inputGuardrails?: GuardRail[];
     outputGuardrails?: GuardRail[];
     memory?: MemoryManagerConfig;
-
+ 
+    /**
+     * When set, the agent's final answer is constrained to this zod schema
+     * using the model provider's native structured-output support (not a
+     * prompted convention), and the parsed, validated result is available
+     * on `GenerateResponse.output`.
+     */
+    structuredOutput?: z.ZodType;
+ 
     /** Injectable logger. Defaults to a no-op logger — nothing is logged unless you opt in. */
     logger?: Logger;
-
+ 
     /** Max rounds of tool-call -> tool-result -> model-generate within a single turn. Default 5. */
     maxToolIterations?: number;
 }
@@ -146,15 +169,27 @@ export interface MemoryStore {
     endTurn(sessionId: string): Promise<void>;
 }
 
-export interface LongTermMemoryStore{
+export interface LongTermMemoryStore {
     get(id: string): Promise<MemoryRecord | undefined>;
 
     getAll(): Promise<MemoryRecord[]>;
 
+    /** Optional: retrieve multiple records by id in a single call to avoid N+1 lookups. */
+    getMany?(ids: string[]): Promise<MemoryRecord[]>;
+
     set(record: MemoryRecord): Promise<void>;
 
     delete(id: string): Promise<void>;
-    clear(): Promise<void>
+
+    searchByMetadata(
+        metadata: MemorySearchOptions["metadata"],
+        options?: Pick<
+            MemorySearchOptions,
+            "userId" | "sessionId" | "limit"
+        >
+    ): Promise<MemoryRecord[]>;
+
+    clear(): Promise<void>;
 }
 
 export interface MemoryOptions {
@@ -224,6 +259,8 @@ export interface MemorySearchOptions{
         key?:string,
         [key: string]: string | undefined;
     }
+    /** Multiplier used to calculate vector search top-K: topK = Math.max(limit * multiplier, 20) */
+    vectorTopKMultiplier?: number;
 }
 
 
@@ -232,10 +269,19 @@ export interface MemoryManagerConfig{
     longTerm? : LongTermMemory;
     extractor?: MemoryExtractor;
     graph?: GraphStore
+    /**
+     * Gates memory extraction: before calling `extractor.extract()`, the
+     * triggering user message is classified, and extraction is skipped when
+     * the classifier confidently recognizes it as a pure lookup (a known
+     * read-only question pattern with nothing new stated). Defaults to
+     * `DefaultMemoryQueryClassifier`. Pass your own to cover app-specific
+     * lookup phrasing, or a classifier that never sets `confidence` to
+     * disable this optimization and always extract.
+     */
+    queryClassifier?: MemoryQueryClassifier;
     /** Injectable logger. Defaults to a no-op logger — nothing is logged unless you opt in. */
     logger?: Logger;
 }
-
 
 export interface MemoryExtractor{
         extract(messages: Message[]): Promise<MemoryRecord[]>
