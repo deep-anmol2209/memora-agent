@@ -95,13 +95,13 @@ const agent = new Agent({
 ```
 
 
-# Structured Output
+## Structured Output
 
 Structured Output allows an agent to return responses that follow a predefined schema instead of returning free-form text.
 
 You can define the expected output using a Zod schema. The agent can then generate structured, predictable data that can be safely consumed by your application.
 
-## Example
+### Example
 
 ```ts
 import { Agent } from "memora-agent";
