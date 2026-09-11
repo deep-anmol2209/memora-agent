@@ -94,6 +94,68 @@ const agent = new Agent({
 });
 ```
 
+
+# Structured Output
+
+Structured Output allows an agent to return responses that follow a predefined schema instead of returning free-form text.
+
+You can define the expected output using a Zod schema. The agent can then generate structured, predictable data that can be safely consumed by your application.
+
+## Example
+
+```ts
+import { Agent } from "memora-agent";
+import {GroqModel} from "memora-agent/groq"
+import { z } from "zod";
+import "dotenv/config";
+
+const model = new GroqModel({
+    model: "openai/gpt-oss-20b",
+    apiKey: "your api key"
+});
+
+// Define the expected output structure
+const TicketSchema = z.object({
+    category: z.enum([
+        "billing",
+        "technical",
+        "account",
+        "shipping",
+        "other"
+    ]),
+    priority: z.enum([
+        "low",
+        "medium",
+        "high",
+        "urgent"
+    ]),
+    summary: z.string(),
+    sentiment: z.enum([
+        "positive",
+        "neutral",
+        "negative"
+    ]),
+    requiresHuman: z.boolean()
+});
+
+const agent = new Agent({
+    model,
+
+    instructions: `
+        You are a customer support assistant.
+        Analyze the user's support request and classify it
+        according to the provided structured output schema.
+    `,
+    structuredOutput: TicketSchema
+});
+
+const result = await agent.run(
+    "My payment was charged twice and I need a refund."
+);
+
+console.log(result);
+```
+
 ## 3. Sessions
 
 Sessions allow an agent to keep track of a conversation between multiple messages.
@@ -164,6 +226,9 @@ const response = await chat.run(
 );
 ```
 
+
+
+
 ## 5  . Long-Term Memory
 
 Long-term memory allows the agent to remember important information even after a conversation ends.
@@ -216,6 +281,7 @@ These memories can then be stored in long-term memory.
 
 ```ts
 import {LLMMemoryExtractor} from "memora-agent"
+import {GroqModel} from "memora-agent/groq"
 
 const model= new GroqModel({
     apiKey: process.env.GROQ_API_KEY,
