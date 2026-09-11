@@ -37,8 +37,8 @@ Use it when you want to create an AI agent that can understand a user's message 
 ### Example
 
 ```ts
-import {Agent} from "remembr"
-import {GroqModel} from "remembr/groq"
+import {Agent} from "memora-agent"
+import {GroqModel} from "memora-agent/groq"
 
 const model= new GroqModel({
    apiKey: "your api key",
@@ -64,7 +64,7 @@ You can give an agent functions for things like getting weather, performing calc
 ### Example
 
 ```ts
-import {defineTool} from "remembr"
+import {defineTool} from "memora-agent"
 
 const addTool = tool({
     name: "add",
@@ -140,7 +140,7 @@ It is useful when the agent needs to understand previous messages instead of tre
 ### Example
 
 ```ts
-import { InMemoryStore } from "remembr";
+import { InMemoryStore } from "memora-agent";
 
 const shortTermMemory = new InMemoryStore();
 
@@ -173,8 +173,8 @@ It is useful for information that should be available in future conversations, s
 ### Example
 
 ```ts
-import {InMemoryLongTermMemory} from "remembr"
-import { MongoLongTermMemoryStore } from "remembr/mongodb";
+import {InMemoryLongTermMemory} from "memora-agent"
+import { MongoLongTermMemoryStore } from "memora-agent/mongodb";
 
 
 const mongodbStore= new MongoLongTermMemoryStore({
@@ -215,7 +215,7 @@ These memories can then be stored in long-term memory.
 ### Example
 
 ```ts
-import {LLMMemoryExtractor} from "remembr"
+import {LLMMemoryExtractor} from "memora-agent"
 
 const model= new GroqModel({
     apiKey: process.env.GROQ_API_KEY,
@@ -249,8 +249,8 @@ This allows you to choose where your agent's memories should be saved based on y
 #### Mongodb
 
 ```ts
-import {InMemoryLongTermMemory} from "remembr"
-import { MongoLongTermMemoryStore } from "remembr/mongodb";
+import {InMemoryLongTermMemory} from "memora-agent"
+import { MongoLongTermMemoryStore } from "memora-agent/mongodb";
 
 const mongoStore= new MongoLongTermMemoryStore({
     uri: process.env.MONGO_DB_URI,    //mongodb connection string
@@ -264,8 +264,8 @@ const longTerm = new InMemoryLongTermMemory({
 #### Neo4j
 
 ```ts
-import {InMemoryLongTermMemory} from "remembr"
-import { Neo4jLongTermMemoryStore } from "remembr/neo4j";
+import {InMemoryLongTermMemory} from "memora-agent"
+import { Neo4jLongTermMemoryStore } from "memora-agent/neo4j";
 
 const neo4j= new Neo4jLongTermMemoryStore({
     uri: process.env.NEO4J_URI!,
@@ -305,7 +305,7 @@ The wording is different, but their meaning is similar. An embedding model can h
 
 #### Setup
 ```ts
-import { OllamaEmbeddingProvider, EmbeddingMemorySimilarity } from "remembr";
+import { OllamaEmbeddingProvider, EmbeddingMemorySimilarity } from "memora-agent";
 
 const embedding = new OllamaEmbeddingProvider({
     model: "nomic-embed-text"
@@ -334,8 +334,8 @@ The SDK supports vector stores such as Pinecone and can also work with an in-mem
 ### Example
 
 ```ts
-import {PineconeVectorStore} from "remembr/pinecone"
-import { OllamaEmbeddingProvider} from "remembr";
+import {PineconeVectorStore} from "memora-agent/pinecone"
+import { OllamaEmbeddingProvider} from "memora-agent";
 const embeddings = new OllamaEmbeddingProvider({
     model: "nomic-embed-text"
 });
@@ -428,7 +428,7 @@ The results are combined and ranked to find the most relevant memories.
 ### Example
 
 ```ts
-import { DefaultMemoryQueryClassifier } from "remembr";
+import { DefaultMemoryQueryClassifier } from "memora-agent";
 
 const queryClassifier= new DefaultMemoryQueryClassifier()
 
@@ -669,7 +669,7 @@ An input guardrail can check a user's message before it reaches the model.
 
 For example, you can block messages that contain content your application does not allow.
 ```ts
-import { Guardrails } from "remembr";
+import { Guardrails } from "memora-agent";
 
 const inputGuardrails = [
 
@@ -695,7 +695,7 @@ An output guardrail checks the agent's response before sending it back to the us
 
 For example, you can prevent the agent from returning information that your application does not want to expose.
 ```ts
-import {Guardrails } from "remembr";
+import {Guardrails } from "memora-agent";
 
 const outputGuardrails = [
 
@@ -742,7 +742,7 @@ Neo4j
 The SDK provides Neo4jLongTermMemoryStore, which implements both LongTermMemoryStore and GraphStore.
 
 ```ts
-import {Neo4jLongTermMemoryStore} from "remembr/neo4j"
+import {Neo4jLongTermMemoryStore} from "memora-agent/neo4j"
 
 const store = new Neo4jLongTermMemoryStore({
     uri: "neo4j://localhost:7687", // neo4j db uri
