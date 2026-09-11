@@ -95,7 +95,7 @@ const agent = new Agent({
 ```
 
 
-## Structured Output
+## 3. Structured Output
 
 Structured Output allows an agent to return responses that follow a predefined schema instead of returning free-form text.
 
@@ -156,7 +156,7 @@ const result = await agent.run(
 console.log(result);
 ```
 
-## 3. Sessions
+## 4. Sessions
 
 Sessions allow an agent to keep track of a conversation between multiple messages.
 
@@ -193,7 +193,7 @@ This keeps the conversation history of session-1 separate from session-2.
 
 Sessions are useful when you want the agent to maintain separate conversations for the same or different users.
 
-## 4. Short-Term Memory
+## 5. Short-Term Memory
 
 Short-term memory allows the agent to remember the conversation while the current session is active.
 
@@ -229,7 +229,7 @@ const response = await chat.run(
 
 
 
-## 5  . Long-Term Memory
+## 6. Long-Term Memory
 
 Long-term memory allows the agent to remember important information even after a conversation ends.
 
@@ -260,7 +260,7 @@ const agent = new Agent({
 });
 ```
 
-## 6. Memory Extraction
+## 7. Memory Extraction
 
 Memory extraction finds important information from a conversation and turns it into a memory that can be saved for later.
 
@@ -301,7 +301,7 @@ const agent = new Agent({
 
 The extractor is important when you want to automatically decide what information from a conversation is worth remembering.
 
-## 7. Memory Storage
+## 8. Memory Storage
 
 The SDK can store long-term memories using different storage systems.
 
@@ -350,7 +350,7 @@ User is building an AI SDK
 ```
 This is useful when you want memories to remain available after the application restarts.
 
-## 8. Embeddings
+## 9. Embeddings
 
 Embeddings convert text into numbers that represent its meaning.
 
@@ -391,7 +391,7 @@ const longtermMemory = new InMemoryLongTermMemory({
 
 Embeddings are useful when you want your agent to find relevant memories based on meaning rather than exact words.
 
-## 9. Vector Store
+## 10. Vector Store
 
 A vector store saves embeddings and helps the agent quickly find memories that are similar to a user's query.
 
@@ -418,13 +418,13 @@ const longtermMemory = new InMemoryLongTermMemory({
 ```
 When a memory is saved:
 ```
-                            User prefers TypeScript
-                                      ↓
-                                   Embedding
-                                      ↓
-                                    Vector
-                                      ↓
-                                   VectorDb
+               User prefers TypeScript
+                          ↓
+                       Embedding
+                          ↓
+                        Vector
+                          ↓
+                       VectorDb
 ```
 
 Later, when the user asks:
@@ -448,7 +448,7 @@ const memories = await longTermMemory.search(
 
 The SDK computes `topK = Math.max(limit * vectorTopKMultiplier, 20)`. Lowering the multiplier reduces vector and DB work; raising it increases recall at the cost of latency.
 
-## 10. Semantic Search
+## 11. Semantic Search
 
 Semantic search finds memories based on their meaning instead of requiring the exact same words.
 
@@ -479,7 +479,7 @@ const memories = await longTermMemory.search(
 ```
 Semantic search is useful when the user's query and the stored memory use different words but have the same meaning.
 
-## 11. Hybrid Search
+## 12. Hybrid Search
 
 Hybrid search combines different ways of finding memories to improve the results.
 
@@ -526,7 +526,7 @@ Hybrid search is useful when one search method alone may not be enough to find t
 
 And separately, your QueryClassifier can automatically provide that metadata, so the developer doesn't always have to manually pass it
 
-## 12. Query Classification
+## 13. Query Classification
 
 Query classification helps the SDK understand what type of memory a user is asking for.
 
@@ -571,7 +571,7 @@ into:
 The search can then focus on memories that match this information.
 Query classification is useful when you want the SDK to automatically narrow memory searches based on what the user is asking.
 
-## 13. Memory Similarity
+## 14. Memory Similarity
 
 Memory similarity compares a query with stored memories and gives them a similarity score.
 
@@ -599,7 +599,7 @@ The SDK compares the query with stored memories and uses the similarity score to
 
 Memory similarity is useful when you want meaning-based memory search without using a separate vector store
 
-## 14. Memory Deduplication and Contradictions
+## 15. Memory Deduplication and Contradictions
 
 When a new memory is created, the SDK checks whether similar information is already stored.
 
@@ -707,7 +707,7 @@ Use contradiction detection when your main concern is changing or conflicting in
 
 You can also use both together when your application needs to handle both duplicate and conflicting memories.
 
-## 15. Guardrails
+## 16. Guardrails
 
 Guardrails allow you to check and control what goes into and comes out of the agent.
 
@@ -779,7 +779,7 @@ use output guardrails when you want to control what your agent can return.
 
 you can use both when your application needs to control both incomming requests and outgoing responses.
 
-## 16. Graph Store
+## 17. Graph Store
 
 GraphStore is used to store and search relationships between memories.
 
